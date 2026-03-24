@@ -80,7 +80,12 @@ async def send_styled(update: Update, text: str, parse_mode=ParseMode.HTML):
 
 
 async def require_auth(update: Update) -> bool:
-    """Check if user is authorized. Returns True if NOT authorized (should stop)."""
+    """Check if user is authorized. Returns True if NOT authorized (should stop).
+    In groups, silently ignore instead of spamming the auth message."""
+    # In groups, never respond — the bot is silent in groups
+    if update.effective_chat.type in ("group", "supergroup"):
+        return True
+
     user_id = update.effective_user.id
     if db.is_authorized(user_id):
         return False
@@ -134,6 +139,10 @@ async def notify_team_channel(context: ContextTypes.DEFAULT_TYPE, user_id: int, 
 # ── /auth ──────────────────────────────────────────────
 
 async def auth_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Only in private chat
+    if update.effective_chat.type != "private":
+        return
+
     user_id = update.effective_user.id
     username = update.effective_user.first_name or update.effective_user.username or str(user_id)
 
@@ -167,6 +176,9 @@ async def auth_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def keys_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show all access keys and their status (admin only - first authorized user)."""
+    if update.effective_chat.type != "private":
+        return
+
     user_id = update.effective_user.id
     if not db.is_authorized(user_id):
         return
@@ -220,6 +232,10 @@ async def track_chat_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ── /start ─────────────────────────────────────────────
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Only respond in private chat
+    if update.effective_chat.type != "private":
+        return
+
     user_id = update.effective_user.id
 
     if not db.is_authorized(user_id):
