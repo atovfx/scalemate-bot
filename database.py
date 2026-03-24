@@ -71,8 +71,86 @@ def init_db():
         )
     """)
 
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS access_keys (
+            key TEXT PRIMARY KEY,
+            label TEXT NOT NULL,
+            used_by INTEGER,
+            used_at TEXT
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS authorized_users (
+            user_id INTEGER PRIMARY KEY,
+            username TEXT,
+            authorized_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+
     conn.commit()
     conn.close()
+
+
+# ── Access Keys ───────────────────────────────────────
+
+def seed_access_keys(keys: list):
+    conn = get_connection()
+    for key, label in keys:
+        conn.execute(
+            "INSERT OR IGNORE INTO access_keys (key, label) VALUES (?, ?)",
+            (key, label),
+        )
+    conn.commit()
+    conn.close()
+
+
+def use_access_key(key: str, user_id: int, username: str = None) -> str | None:
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT * FROM access_keys WHERE key = ? AND used_by IS NULL", (key,)
+    ).fetchone()
+    if not row:
+        conn.close()
+        return None
+    conn.execute(
+        "UPDATE access_keys SET used_by = ?, used_at = datetime('now') WHERE key = ?",
+        (user_id, key),
+    )
+    conn.execute(
+        """INSERT INTO authorized_users (user_id, username) VALUES (?, ?)
+           ON CONFLICT(user_id) DO UPDATE SET username = excluded.username""",
+        (user_id, username),
+    )
+    conn.commit()
+    label = row["label"]
+    conn.close()
+    return label
+
+
+def is_authorized(user_id: int) -> bool:
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT 1 FROM authorized_users WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    conn.close()
+    return row is not None
+
+
+def get_authorized_users():
+    conn = get_connection()
+    rows = conn.execute("SELECT * FROM authorized_users").fetchall()
+    conn.close()
+    return rows
+
+
+def get_username(user_id: int) -> str:
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT username FROM authorized_users WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    conn.close()
+    return row["username"] if row and row["username"] else str(user_id)
 
 
 # ── Tasks ──────────────────────────────────────────────
