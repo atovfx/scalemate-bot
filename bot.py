@@ -1101,25 +1101,7 @@ def main():
             BotCommand("keys", "🔑 Voir les clés d'accès"),
         ])
 
-        # ── Send initial task message to team channel ──
-        try:
-            await application.bot.send_message(
-                chat_id=TEAM_CHANNEL_ID,
-                message_thread_id=TEAM_TOPIC_ID,
-                text=(
-                    "🎯 <b>TARGET CE SOIR — 300 CLICKS TINDER JADE</b>\n"
-                    "━━━━━━━━━━━━━━━━━━━━\n\n"
-                    "⬜ DL les photos\n"
-                    "⬜ Faire 30 comptes ou +\n\n"
-                    "━━━━━━━━━━━━━━━━━━━━\n"
-                    "🕐 24/03/2026\n"
-                    "🔥 <i>Let's go team</i>"
-                ),
-                parse_mode=ParseMode.HTML,
-            )
-            logger.info("Sent initial task to team channel")
-        except Exception as e:
-            logger.error(f"Failed to send initial task: {e}")
+        # One-time startup messages can be sent here if needed
 
     app.post_init = post_init
 
