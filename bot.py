@@ -972,6 +972,48 @@ async def document_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+# ── /post — Post to team channel ──────────────────────
+
+async def post_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Post a message to the team channel from DM."""
+    if await require_auth(update):
+        return
+
+    user_id = update.effective_user.id
+    text = " ".join(context.args) if context.args else ""
+
+    if not text:
+        await send_styled(
+            update,
+            "⚠️ <b>Usage :</b> <code>/post Ton message pour la team</code>",
+        )
+        return
+
+    username = db.get_username(user_id)
+    now = datetime.utcnow().strftime("%d/%m/%Y %H:%M")
+
+    msg = (
+        f"📢 <b>MESSAGE TEAM</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 <b>{username}</b>\n\n"
+        f"{text}\n\n"
+        f"🕐 {now} UTC\n"
+        f"━━━━━━━━━━━━━━━━━━━━"
+    )
+
+    try:
+        await context.bot.send_message(
+            chat_id=TEAM_CHANNEL_ID,
+            message_thread_id=TEAM_TOPIC_ID,
+            text=msg,
+            parse_mode=ParseMode.HTML,
+        )
+        await send_styled(update, "<b>✅ Message posté dans le channel team !</b>")
+    except Exception as e:
+        logger.error(f"Failed to post to team channel: {e}")
+        await send_styled(update, f"<b>❌ Erreur</b>\n\n<code>{str(e)[:200]}</code>")
+
+
 # ── Reminder checker job ──────────────────────────────
 
 async def check_reminders(context: ContextTypes.DEFAULT_TYPE):
@@ -1024,6 +1066,7 @@ def main():
     app.add_handler(CommandHandler("clear", clear_command))
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("export", export_command))
+    app.add_handler(CommandHandler("post", post_command))
 
     # Callbacks
     app.add_handler(CallbackQueryHandler(model_callback, pattern=r"^model:"))
@@ -1054,8 +1097,29 @@ def main():
             BotCommand("clear", "🧹 Effacer la conversation"),
             BotCommand("stats", "📊 Statistiques"),
             BotCommand("export", "📦 Exporter tes données"),
+            BotCommand("post", "📢 Poster dans le channel team"),
             BotCommand("keys", "🔑 Voir les clés d'accès"),
         ])
+
+        # ── Send initial task message to team channel ──
+        try:
+            await application.bot.send_message(
+                chat_id=TEAM_CHANNEL_ID,
+                message_thread_id=TEAM_TOPIC_ID,
+                text=(
+                    "🎯 <b>TARGET CE SOIR — 300 CLICKS TINDER JADE</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━\n\n"
+                    "⬜ DL les photos\n"
+                    "⬜ Faire 30 comptes ou +\n\n"
+                    "━━━━━━━━━━━━━━━━━━━━\n"
+                    "🕐 24/03/2026\n"
+                    "🔥 <i>Let's go team</i>"
+                ),
+                parse_mode=ParseMode.HTML,
+            )
+            logger.info("Sent initial task to team channel")
+        except Exception as e:
+            logger.error(f"Failed to send initial task: {e}")
 
     app.post_init = post_init
 
